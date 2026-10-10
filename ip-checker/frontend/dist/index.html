@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>IP-Checker</title>
+<style>
+  :root {
+    --neon: 185, 245, 255;
+    --neon2: 120, 160, 255;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  html, body {
+    height: 100%;
+    background: #000;
+    color: #f2faff;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+  }
+
+  /* неоновая рамка и свечение по краям окна */
+  .frame {
+    position: fixed; inset: 0;
+    border: 1px solid rgba(var(--neon), .9);
+    box-shadow:
+      inset 0 0 12px rgba(var(--neon), .55),
+      inset 0 0 40px rgba(var(--neon), .25),
+      inset 0 0 90px rgba(var(--neon2), .12);
+    pointer-events: none;
+    z-index: 50;
+    animation: pulse 2.4s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
+
+  /* цветные "огни" под стеклом, чтобы blur было видно */
+  .blob {
+    position: fixed; border-radius: 50%;
+    filter: blur(30px);
+    opacity: .6;
+    animation: float 9s ease-in-out infinite;
+    z-index: 0;
+  }
+  .b1 { width: 170px; height: 170px; background: rgb(0, 220, 255); left: 6%;  bottom: 2%; }
+  .b2 { width: 150px; height: 150px; background: rgb(150, 90, 255); right: 6%; bottom: 6%; animation-delay: -3s; }
+  .b3 { width: 110px; height: 110px; background: rgb(255, 255, 255); left: 46%; bottom: -30px; opacity: .35; animation-delay: -6s; }
+  @keyframes float {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    33%      { transform: translate(24px, -18px) scale(1.12); }
+    66%      { transform: translate(-20px, 14px) scale(.92); }
+  }
+
+  /* заголовок окна */
+  .titlebar {
+    position: fixed; top: 0; left: 0; right: 0; height: 36px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 10px 0 16px;
+    font-size: 13px; letter-spacing: .08em;
+    color: rgba(var(--neon), .85);
+    --wails-draggable: drag;
+    z-index: 40;
+  }
+  .wbtns { display: flex; gap: 4px; --wails-draggable: no-drag; }
+  .wbtn {
+    width: 30px; height: 24px; border: none; border-radius: 8px;
+    background: transparent; color: rgba(var(--neon), .85);
+    font-size: 14px; cursor: pointer;
+    transition: background .15s, box-shadow .15s;
+  }
+  .wbtn:hover { background: rgba(255,255,255,.12); box-shadow: 0 0 10px rgba(var(--neon), .5); }
+  .wbtn.close:hover { background: rgba(255, 70, 90, .35); box-shadow: 0 0 10px rgba(255, 70, 90, .7); }
+
+  main {
+    position: fixed; inset: 36px 0 0 0;
+    display: flex; flex-direction: column;
+    z-index: 10;
+  }
+
+  /* бегущая строка над глобусом */
+  .marquee {
+    flex: none; height: 26px; overflow: hidden; position: relative;
+    display: flex; align-items: center;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+            mask-image: linear-gradient(90deg, transparent, #000 14%, #000 86%, transparent);
+    pointer-events: none;
+  }
+  .marquee-track { display: flex; width: max-content; animation: marq 18s linear infinite; }
+  .marquee-group { display: flex; flex: none; }
+  .marquee-group span {
+    display: inline-flex; align-items: center; white-space: nowrap;
+    padding: 0 6px 0 18px;
+    font-size: 11.5px; letter-spacing: .16em; font-weight: 600;
+    color: rgba(var(--neon), .9);
+    text-shadow: 0 0 8px rgba(var(--neon), .75);
+  }
+  .marquee-group span::after { content: "\25C6"; margin-left: 24px; font-size: 7px; opacity: .55; }
+  @keyframes marq { to { transform: translateX(-50%); } }
+
+  /* сцена с глобусом */
+  .stage { position: relative; flex: 1; min-height: 0; }
+  #globe { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  .panel {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 10px; padding: 4px 24px 22px;
+  }
+  .row { display: flex; gap: 12px; width: min(600px, 100%); align-items: stretch; }
+
+  /* стеклянное поле ввода */
+  .glass-input {
+    flex: 1; min-width: 0;
+    padding: 0 18px;
+    font: inherit; font-size: 14px; color: #fff;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(var(--neon), .45);
+    border-radius: 16px;
+    outline: none;
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    box-shadow: 0 0 12px rgba(var(--neon), .12), inset 0 1px 0 rgba(255,255,255,.3);
+    transition: border-color .25s, box-shadow .25s, background .25s;
+    user-select: text;
+  }
+  .glass-input::placeholder { color: rgba(255,255,255,.4); }
+  .glass-input:focus {
+    background: rgba(255,255,255,.11);
+    border-color: rgba(var(--neon), .95);
+    box-shadow: 0 0 18px rgba(var(--neon), .55), 0 0 40px rgba(var(--neon), .2), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+  .hint {
+    width: 100%; height: 15px; font-size: 11.5px; text-align: center;
+    color: rgba(255,255,255,.5); letter-spacing: .02em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; /* всегда одна строка: вёрстка не прыгает */
+  }
+
+  /* стеклянная кнопка */
+  .glass-btn {
+    position: relative;
+    padding: 13px 34px; white-space: nowrap;
+    font-size: 16px; font-weight: 600; letter-spacing: .04em;
+    color: #fff;
+    background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.06));
+    border: 1px solid rgba(var(--neon), .85);
+    border-radius: 16px;
+    backdrop-filter: blur(14px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+    box-shadow:
+      0 0 12px rgba(var(--neon), .35),
+      0 0 32px rgba(var(--neon), .18),
+      inset 0 1px 0 rgba(255,255,255,.45);
+    cursor: pointer;
+    transition: transform .15s, box-shadow .25s, background .25s, border-color .25s;
+  }
+  .glass-btn:hover {
+    background: linear-gradient(180deg, rgba(255,255,255,.32), rgba(255,255,255,.1));
+    border-color: rgba(var(--neon), 1);
+    box-shadow:
+      0 0 18px rgba(var(--neon), .7),
+      0 0 50px rgba(var(--neon), .4),
+      inset 0 1px 0 rgba(255,255,255,.6);
+    transform: translateY(-1px);
+  }
+  .glass-btn:active { transform: translateY(1px) scale(.98); }
+  .glass-btn:disabled {
+    opacity: .55; cursor: default; transform: none;
+    box-shadow: 0 0 6px rgba(var(--neon), .15);
+  }
+
+  /* стеклянная карточка с результатом */
+  /* постоянное место под карточку: размер глобуса не зависит от того, показана она или нет */
+  .slot { position: relative; width: min(600px, 100%); height: 205px; flex: none; }
+  .card {
+    position: absolute; left: 0; right: 0; top: 0; max-height: 100%; overflow: hidden;
+    padding: 14px 22px 16px;
+    text-align: center;
+    background: rgba(255,255,255,.07);
+    border: 1px solid rgba(var(--neon), .45);
+    border-radius: 18px;
+    backdrop-filter: blur(16px) saturate(150%);
+    -webkit-backdrop-filter: blur(16px) saturate(150%);
+    box-shadow: 0 0 18px rgba(var(--neon), .18), inset 0 1px 0 rgba(255,255,255,.3);
+    opacity: 0; transform: translateY(8px);
+    transition: opacity .4s, transform .4s;
+    user-select: text;
+    display: none;
+  }
+  .card.visible { display: block; }
+  .card.show { opacity: 1; transform: none; }
+  .card .ip {
+    font-size: 24px; font-weight: 700; letter-spacing: .05em;
+    text-shadow: 0 0 12px rgba(var(--neon), .8);
+  }
+  .card .loc {
+    margin-top: 6px; font-size: 15px; color: rgba(255,255,255,.88);
+    display: flex; gap: 8px; justify-content: center; align-items: center;
+  }
+  .card .loc img { width: 24px; height: auto; border-radius: 3px; box-shadow: 0 0 8px rgba(var(--neon), .5); }
+  .card .addr {
+    margin-top: 8px; font-size: 13px; color: rgba(255,255,255,.75); line-height: 1.4;
+  }
+  .card .addr b { color: rgba(var(--neon), .95); font-weight: 600; letter-spacing: .04em; margin-right: 6px; }
+  .card .addr small { display: block; margin-top: 2px; font-size: 11px; color: rgba(255,255,255,.45); }
+  .chips { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+  .chip {
+    padding: 4px 10px; font-size: 11.5px; color: rgba(255,255,255,.85);
+    border: 1px solid rgba(var(--neon), .35); border-radius: 999px;
+    background: rgba(255,255,255,.05);
+  }
+  .chip i { font-style: normal; color: rgba(var(--neon), .9); margin-right: 5px; }
+  .card.error { border-color: rgba(255, 90, 110, .7); font-size: 13px; }
+</style>
+</head>
+<body>
+  <div class="blob b1"></div>
+  <div class="blob b2"></div>
+  <div class="blob b3"></div>
+
+  <div class="titlebar">
+    <span>IP-CHECKER</span>
+    <div class="wbtns">
+      <button class="wbtn" id="min">&#x2013;</button>
+      <button class="wbtn close" id="close">&#x2715;</button>
+    </div>
+  </div>
+
+  <main>
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        <div class="marquee-group"><span>made by C1RKUL and Claude.ai</span><span>made by C1RKUL and Claude.ai</span><span>made by C1RKUL and Claude.ai</span></div>
+        <div class="marquee-group"><span>made by C1RKUL and Claude.ai</span><span>made by C1RKUL and Claude.ai</span><span>made by C1RKUL and Claude.ai</span></div>
+      </div>
+    </div>
+    <div class="stage" id="stage"><canvas id="globe"></canvas></div>
+    <div class="panel">
+      <div class="row">
+        <input id="origin" class="glass-input" type="text" spellcheck="false" autocomplete="off"
+               placeholder="Откуда: город или адрес">
+        <button class="glass-btn" id="check">Check IP</button>
+      </div>
+      <div class="hint" id="hint"></div>
+      <div class="slot"><div class="card" id="card"></div></div>
+    </div>
+  </main>
+
+  <div class="frame"></div>
+
+<script src="land.js"></script>
+<script>
+/* ===================== Глобус ===================== */
+const D2R = Math.PI / 180;
+const NEON = '185,245,255';
+
+// Откуда «летит» сигнал. Первый хаб, который не слишком близко к цели.
+const HUBS = [
+  { name: 'Amsterdam', lat: 52.37, lon: 4.90 },
+  { name: 'New York',  lat: 40.71, lon: -74.01 },
+];
+
+const stage  = document.getElementById('stage');
+const canvas = document.getElementById('globe');
+const ctx    = canvas.getContext('2d');
+let W = 0, H = 0;
+
+function resize() {
+  const r = stage.getBoundingClientRect();
+  const d = window.devicePixelRatio || 1;
+  W = Math.max(1, r.width); H = Math.max(1, r.height);
+  canvas.width = Math.round(W * d);
+  canvas.height = Math.round(H * d);
+  ctx.setTransform(d, 0, 0, d, 0, 0);
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+
+// --- геометрия ---
+function vec(lat, lon, r = 1) {
+  const p = lat * D2R, l = lon * D2R;
+  return [r * Math.cos(p) * Math.cos(l), r * Math.cos(p) * Math.sin(l), r * Math.sin(p)];
+}
+function basis(lat, lon) {
+  const p = lat * D2R, l = lon * D2R;
+  return {
+    v: [Math.cos(p) * Math.cos(l), Math.cos(p) * Math.sin(l), Math.sin(p)],
+    e: [-Math.sin(l), Math.cos(l), 0],
+    n: [-Math.sin(p) * Math.cos(l), -Math.sin(p) * Math.sin(l), Math.cos(p)],
+  };
+}
+function toLatLon(p) {
+  const r = Math.hypot(p[0], p[1], p[2]) || 1;
+  return { lat: Math.asin(p[2] / r) / D2R, lon: Math.atan2(p[1], p[0]) / D2R };
+}
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+
+// точки суши
+const LAND = (window.LAND_DOTS || []);
+const LAND_XYZ = new Float32Array((LAND.length / 2) * 3);
+for (let i = 0, j = 0; i < LAND.length; i += 2, j += 3) {
+  const v = vec(LAND[i], LAND[i + 1]);
+  LAND_XYZ[j] = v[0]; LAND_XYZ[j + 1] = v[1]; LAND_XYZ[j + 2] = v[2];
+}
+
+// --- состояние ---
+const cam = { lat: 18, lon: 20 };
+let customOrigin = null; // начальная точка, заданная пользователем
+let arc = null;         // текущая дуга
+let scanning = false;    // идёт запрос
+let lastT = performance.now();
+
+function pickOrigin(lat, lon) {
+  const vb = vec(lat, lon);
+  for (const h of HUBS) {
+    const ang = Math.acos(clamp(dot3(vec(h.lat, h.lon), vb), -1, 1)) / D2R;
+    if (ang > 8) return h;
+  }
+  return HUBS[HUBS.length - 1];
+}
+
+function startArc(info) {
+  const o = customOrigin || pickOrigin(info.lat, info.lon);
+  const vA = vec(o.lat, o.lon), vB = vec(info.lat, info.lon);
+  const omega = Math.acos(clamp(dot3(vA, vB), -1, 1));
+  const now = performance.now();
+  arc = {
+    A: o, B: { lat: info.lat, lon: info.lon },
+    vA, vB, omega,
+    alt: 0.10 + 0.30 * (omega / Math.PI),   // высота «полёта» дуги над поверхностью
+    start: now + 900,                        // небольшая пауза: камера доезжает до старта
+    dur: 3800 + 2400 * (omega / Math.PI),    // чем дальше, тем дольше летит
+    t: 0, done: false,
+    label: info.city || info.country || '',
+  };
+}
+
+function arcPoint(a, t) {
+  let u;
+  if (a.omega < 1e-4) u = a.vB;
+  else {
+    const s = Math.sin(a.omega);
+    const w1 = Math.sin((1 - t) * a.omega) / s, w2 = Math.sin(t * a.omega) / s;
+    u = [a.vA[0] * w1 + a.vB[0] * w2, a.vA[1] * w1 + a.vB[1] * w2, a.vA[2] * w1 + a.vB[2] * w2];
+  }
+  const r = 1 + a.alt * Math.sin(Math.PI * t);
+  return [u[0] * r, u[1] * r, u[2] * r];
+}
+
+// --- кадр ---
+function frame(now) {
+  const dt = Math.min(now - lastT, 60);
+  lastT = now;
+
+  let tgt = null, tau = 260;
+  if (arc) {
+    if (now < arc.start) {
+      tgt = arc.A; tau = 350; arc.t = 0;
+    } else {
+      const p = clamp((now - arc.start) / arc.dur, 0, 1);
+      arc.t = 0.5 - 0.5 * Math.cos(Math.PI * p);       // плавный старт и финиш
+      if (p >= 1) arc.done = true;
+      tgt = arc.omega < 1e-4 ? arc.B : toLatLon(arcPoint(arc, arc.t));
+      tau = 200;
+    }
+  } else {
+    cam.lon += dt * (scanning ? 0.045 : 0.010);          // вращение: быстрее, пока идёт запрос
+    cam.lat += (18 - cam.lat) * (1 - Math.exp(-dt / 500));
+  }
+  if (tgt) {
+    const k = 1 - Math.exp(-dt / tau);
+    const dl = ((tgt.lon - cam.lon + 540) % 360) - 180;
+    cam.lon += dl * k;
+    // камера чуть выше цели: точка оказывается ниже центра, и дуга видна как арка
+    cam.lat += (clamp(tgt.lat + 18, -70, 70) - cam.lat) * k;
+  }
+  cam.lon = ((cam.lon + 540) % 360) - 180;
+
+  draw(now);
+  requestAnimationFrame(frame);
+}
+
+function draw(now) {
+  ctx.clearRect(0, 0, W, H);
+  const cx = W / 2, cy = H / 2;
+  const R = Math.min(W * 0.45, H * 0.44); // размер шара постоянный в любом состоянии
+  const b = basis(cam.lat, cam.lon);
+  const [vx, vy, vz] = b.v, [ex, ey, ez] = b.e, [nx, ny, nz] = b.n;
+
+  const proj = (p) => {
+    const d = p[0] * vx + p[1] * vy + p[2] * vz;
+    const x = p[0] * ex + p[1] * ey + p[2] * ez;
+    const y = p[0] * nx + p[1] * ny + p[2] * nz;
+    return { x: cx + x * R, y: cy - y * R, d, vis: d >= 0 || (x * x + y * y) >= 1 };
+  };
+
+  // ореол
+  let g = ctx.createRadialGradient(cx, cy, R * 0.92, cx, cy, R * 1.5);
+  g.addColorStop(0, `rgba(${NEON},.26)`);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // тело шара (тёмное «стекло»)
+  g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.42, R * 0.1, cx, cy, R);
+  g.addColorStop(0, 'rgba(45,80,105,.55)');
+  g.addColorStop(1, 'rgba(2,6,12,.94)');
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2);
+  ctx.fillStyle = g; ctx.fill();
+
+  // неоновый контур
+  ctx.save();
+  ctx.strokeStyle = `rgba(${NEON},.9)`; ctx.lineWidth = 1.2;
+  ctx.shadowColor = `rgba(${NEON},.95)`; ctx.shadowBlur = 18;
+  ctx.stroke();
+  ctx.restore();
+
+  // сетка
+  ctx.lineWidth = 0.7;
+  ctx.strokeStyle = `rgba(${NEON},.10)`;
+  const poly = (pts) => {
+    let prev = null;
+    ctx.beginPath();
+    for (const p of pts) {
+      const q = proj(p);
+      if (q.vis && q.d >= 0) {
+        if (prev && prev.vis && prev.d >= 0) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y);
+      }
+      prev = q;
+    }
+    ctx.stroke();
+  };
+  for (let lat = -60; lat <= 60; lat += 30) {
+    const pts = []; for (let lon = -180; lon <= 180; lon += 6) pts.push(vec(lat, lon));
+    poly(pts);
+  }
+  for (let lon = 0; lon < 360; lon += 30) {
+    const pts = []; for (let lat = -90; lat <= 90; lat += 6) pts.push(vec(lat, lon));
+    poly(pts);
+  }
+
+  // суша из точек
+  const base = R / 150;
+  ctx.fillStyle = 'rgb(205,248,255)';
+  for (let i = 0; i < LAND_XYZ.length; i += 3) {
+    const px = LAND_XYZ[i], py = LAND_XYZ[i + 1], pz = LAND_XYZ[i + 2];
+    const d = px * vx + py * vy + pz * vz;
+    if (d <= 0.03) continue;
+    const x = cx + (px * ex + py * ey + pz * ez) * R;
+    const y = cy - (px * nx + py * ny + pz * nz) * R;
+    const s = base * (0.55 + 1.15 * d);
+    ctx.globalAlpha = 0.28 + 0.72 * d;
+    ctx.fillRect(x - s / 2, y - s / 2, s, s);
+  }
+  ctx.globalAlpha = 1;
+
+  if (!arc) return;
+
+  // исходная точка
+  const pa = proj(arc.vA);
+  if (pa.vis && pa.d > 0) {
+    ctx.beginPath(); ctx.arc(pa.x, pa.y, 3, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${NEON},.85)`; ctx.lineWidth = 1.2; ctx.stroke();
+  }
+
+  if (arc.omega >= 1e-3) {
+    // «призрак» полного маршрута
+    ctx.save();
+    ctx.setLineDash([3, 6]);
+    ctx.strokeStyle = `rgba(${NEON},.16)`; ctx.lineWidth = 1;
+    let prev = null; ctx.beginPath();
+    for (let k = 0; k <= 90; k++) {
+      const q = proj(arcPoint(arc, k / 90));
+      if (q.vis) { if (prev && prev.vis) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); }
+      prev = q;
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // след дуги: ярче к голове
+    const N = Math.max(2, Math.ceil(140 * arc.t));
+    let prevQ = null;
+    ctx.lineCap = 'round';
+    for (let k = 0; k <= N; k++) {
+      const q = proj(arcPoint(arc, arc.t * k / N));
+      if (prevQ && prevQ.vis && q.vis) {
+        const a = k / N;
+        ctx.beginPath(); ctx.moveTo(prevQ.x, prevQ.y); ctx.lineTo(q.x, q.y);
+        ctx.strokeStyle = `rgba(${NEON},${0.03 + 0.10 * a})`; ctx.lineWidth = 5;
+        ctx.stroke();
+        ctx.strokeStyle = `rgba(${NEON},${0.20 + 0.80 * a})`; ctx.lineWidth = 1.7;
+        ctx.stroke();
+      }
+      prevQ = q;
+    }
+
+    // голова дуги
+    if (!arc.done) {
+      const h = proj(arcPoint(arc, arc.t));
+      if (h.vis) {
+        const gg = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, 14);
+        gg.addColorStop(0, 'rgba(255,255,255,.95)');
+        gg.addColorStop(0.3, `rgba(${NEON},.55)`);
+        gg.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath(); ctx.arc(h.x, h.y, 14, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+
+  // точка назначения: кольца-«пульс» по поверхности + подпись
+  if (arc.done || arc.t > 0.985) {
+    const bl = basis(arc.B.lat, arc.B.lon);
+    for (let ph = 0; ph < 2; ph++) {
+      const phase = ((now / 1900) + ph * 0.5) % 1;
+      const rho = 0.015 + phase * 0.13;
+      ctx.strokeStyle = `rgba(${NEON},${(1 - phase) * 0.85})`;
+      ctx.lineWidth = 1.5;
+      let prev = null; ctx.beginPath();
+      for (let k = 0; k <= 64; k++) {
+        const th = (k / 64) * Math.PI * 2;
+        const c = Math.cos(rho), s = Math.sin(rho), ct = Math.cos(th), st = Math.sin(th);
+        const p = [
+          bl.v[0] * c + (bl.e[0] * ct + bl.n[0] * st) * s,
+          bl.v[1] * c + (bl.e[1] * ct + bl.n[1] * st) * s,
+          bl.v[2] * c + (bl.e[2] * ct + bl.n[2] * st) * s,
+        ];
+        const q = proj(p);
+        if (q.d > 0) { if (prev) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); prev = q; } else prev = null;
+      }
+      ctx.stroke();
+    }
+    const t = proj(vec(arc.B.lat, arc.B.lon));
+    if (t.d > 0) {
+      ctx.save();
+      ctx.shadowColor = `rgba(${NEON},1)`; ctx.shadowBlur = 16;
+      ctx.fillStyle = '#fff';
+      ctx.beginPath(); ctx.arc(t.x, t.y, 3.4, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+      if (arc.label) {
+        ctx.save();
+        ctx.font = '600 12px "Segoe UI", system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(255,255,255,.95)';
+        ctx.shadowColor = 'rgba(0,0,0,.9)'; ctx.shadowBlur = 6;
+        ctx.fillText(arc.label, t.x + 11, t.y - 10);
+        ctx.restore();
+      }
+    }
+  }
+}
+requestAnimationFrame(frame);
+
+/* ===================== Интерфейс ===================== */
+const btn  = document.getElementById('check');
+const card = document.getElementById('card');
+
+document.getElementById('close').onclick = () => window.runtime.Quit();
+document.getElementById('min').onclick   = () => window.runtime.WindowMinimise();
+
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+function hideCard() {
+  card.classList.remove('show');
+  card.classList.remove('visible');
+}
+function showCard(html, isError) {
+  card.className = 'card visible' + (isError ? ' error' : '');
+  card.innerHTML = html;
+  requestAnimationFrame(() => requestAnimationFrame(() => card.classList.add('show')));
+}
+
+function buildAddress(i) {
+  const seen = new Set(), parts = [];
+  for (const p of [i.zip, i.city, i.region, i.country]) {
+    const s = (p || '').trim();
+    if (!s) continue;
+    const key = s.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key); parts.push(s);
+  }
+  return parts.join(', ');
+}
+
+function renderInfo(i) {
+  const code = (i.countryCode || '').toLowerCase();
+  const flag = /^[a-z]{2}$/.test(code)
+    ? `<img src="https://flagcdn.com/w40/${code}.png" alt="" onerror="this.remove()">` : '';
+  const place = [i.city, i.country].filter(Boolean).map(esc).join(', ');
+  const addr = buildAddress(i);
+
+  const chips = [];
+  if (i.isp)      chips.push(`<span class="chip"><i>ISP</i>${esc(i.isp)}</span>`);
+  if (i.timezone) chips.push(`<span class="chip"><i>TZ</i>${esc(i.timezone)}</span>`);
+  if (i.hasGeo)   chips.push(`<span class="chip"><i>GPS</i>${i.lat.toFixed(2)}, ${i.lon.toFixed(2)}</span>`);
+  chips.push(`<span class="chip"><i>PING</i>${i.pingMs} ms</span>`);
+  if (i.provider) chips.push(`<span class="chip"><i>VIA</i>${esc(i.provider)}</span>`);
+
+  let html = `<div class="ip">${esc(i.ip)}</div>`;
+  if (place) html += `<div class="loc">${flag}<span>${place}</span></div>`;
+  if (addr) {
+    html += `<div class="addr"><b>АДРЕС</b>${esc(addr)}<small>приблизительно, по данным IP: точный адрес по IP определить нельзя</small></div>`;
+  }
+  if (!i.hasGeo) {
+    html += `<div class="addr"><small>координаты недоступны: карта не показана</small></div>`;
+  }
+  html += `<div class="chips">${chips.join('')}</div>`;
+  return html;
+}
+
+/* --- начальная точка дуги (откуда «летит» сигнал) --- */
+const originInput = document.getElementById('origin');
+const hint = document.getElementById('hint');
+const ORIGIN_KEY = 'ipchecker.origin';
+let committedText = '';
+let lastInfo = null;
+
+function setHint(text, isError) {
+  hint.textContent = text;
+  hint.style.color = isError ? 'rgba(255,120,135,.95)' : '';
+}
+function shortPlace(name) {            // "Москва, Центральный федеральный округ, Россия" -> "Москва, Россия"
+  const p = String(name).split(',').map(s => s.trim()).filter(Boolean);
+  return p.length > 2 ? p[0] + ', ' + p[p.length - 1] : p.join(', ');
+}
+function defaultHint() {
+  setHint(customOrigin
+    ? 'Старт: ' + shortPlace(customOrigin.name)
+    : 'Старт: ' + HUBS[0].name + ' (по умолчанию)');
+  hint.title = 'Пустое поле + Enter: сбросить старт на значение по умолчанию';
+}
+function saveOrigin(text) {
+  try {
+    if (customOrigin) localStorage.setItem(ORIGIN_KEY, JSON.stringify({ text, ...customOrigin }));
+    else localStorage.removeItem(ORIGIN_KEY);
+  } catch (_) {}
+}
+function restoreOrigin() {
+  try {
+    const s = JSON.parse(localStorage.getItem(ORIGIN_KEY) || 'null');
+    if (s && typeof s.lat === 'number' && typeof s.lon === 'number') {
+      customOrigin = { name: s.name, lat: s.lat, lon: s.lon };
+      committedText = s.text || '';
+      originInput.value = committedText;
+    }
+  } catch (_) {}
+  defaultHint();
+}
+
+async function commitOrigin() {
+  const text = originInput.value.trim();
+  if (text === committedText) return true;
+  if (!text) {                                   // пусто — вернуть хабы по умолчанию
+    customOrigin = null; committedText = '';
+    saveOrigin('');
+    defaultHint();
+    return true;
+  }
+  setHint('Ищу адрес…');
+  try {
+    const p = await window.go.main.App.GeocodeAddress(text);
+    customOrigin = { name: p.name, lat: p.lat, lon: p.lon };
+    committedText = text;
+    saveOrigin(text);
+    defaultHint();
+    if (lastInfo && lastInfo.hasGeo) { arc = null; startArc(lastInfo); } // показать новую дугу сразу
+    return true;
+  } catch (e) {
+    setHint(String(e), true);
+    return false;
+  }
+}
+originInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); commitOrigin(); }
+});
+restoreOrigin();
+
+btn.addEventListener('click', async () => {
+  btn.disabled = true;
+  btn.textContent = 'Scanning…';
+  scanning = true;
+  arc = null;
+  hideCard();
+  try {
+    await commitOrigin(); // если в поле новый текст, сначала найдём его
+    const info = await window.go.main.App.GetIPInfo();
+    lastInfo = info;
+    showCard(renderInfo(info), false);
+    if (info.hasGeo) startArc(info);
+  } catch (e) {
+    showCard(esc(e), true);
+  } finally {
+    scanning = false;
+    btn.disabled = false;
+    btn.textContent = 'Check IP';
+  }
+});
+</script>
+</body>
+</html>

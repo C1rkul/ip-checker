@@ -1,0 +1,12 @@
+{
+  "$schema": "https://wails.io/schemas/config.v2.json",
+  "name": "ipchecker",
+  "outputfilename": "ipchecker",
+  "frontend:dir": "frontend",
+  "frontend:install": "",
+  "frontend:build": "",
+  "frontend:dev:watcher": "",
+  "frontend:dev:build": "",
+  "frontend:dev:install": "",
+  "assetdir": "frontend/dist"
+}
