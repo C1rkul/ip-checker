@@ -3,7 +3,7 @@ Simple ip-checker / Простой ip-checker
 
 
 
-[ENGLISH/АНГЛИЙСКИЙ]
+**[ENGLISH/АНГЛИЙСКИЙ]**
 
 # IP-Checker 🌐
 
@@ -72,8 +72,9 @@ Set your **start point** to your actual location, then hit *Check IP*. The arc a
 
 This app was **vibe-coded** — written in Go end-to-end with [Claude.ai](https://claude.ai) as a pair-programmer. The whole UI layer is Wails v2, so there is no Electron bloat and no C compiler headaches: just Go + a webview.
 
+========
 
-[RUSSIAN/РУССКИЙ]
+**[RUSSIAN/РУССКИЙ]**
 
 # IP-Checker 🌐
 
