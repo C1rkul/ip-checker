@@ -56,7 +56,7 @@ The compiled executable lands in `build/bin/`.
 
 ## How the VPN view works
 
-Set your **start point** to your actual location, then put a **VPN server IP** (or any foreign IP) into the target field and hit *Check IP*. The arc animates from home to the exit node — so you can literally see where your traffic is being routed. Leave the target empty to trace your current public IP instead.
+Set your **start point** to your actual location, then hit *Check IP*. The arc animates from home to the exit node — so you can literally see where your traffic is being routed. Leave the target empty to trace your current public IP instead.
 
 ## API & limits
 
@@ -133,7 +133,7 @@ wails build
 
 ## Как работает VPN-вид
 
-Задаёте **точку старта** = ваше реальное местоположение, в поле цели вбиваете **IP VPN-сервера** (или любой чужой IP) и жмёте *Check IP*. Дуга анимируется от дома до выходного узла — буквально видно, куда маршрутизируется трафик. Оставьте цель пустой, чтобы провести трассировку до своего текущего публичного IP.
+Задаёте **точку старта** = ваше реальное местоположение, жмёте *Check IP*. Дуга анимируется от дома до выходного узла — буквально видно, куда маршрутизируется трафик. Оставьте цель пустой, чтобы провести трассировку до своего текущего публичного IP.
 
 ## API и лимиты
 
