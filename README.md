@@ -29,7 +29,7 @@ Simple ip-checker / Простой ip-checker
 
 - **Backend:** Go
 - **UI framework:** [Wails v2](https://wails.io) (native window + system WebView)
-- **Frontend:** JavaScript / TypeScript, `globe.gl` (three.js)
+- **Frontend:** JavaScript, `globe.gl` (three.js)
 - **Geo API:** [ipwho.is](https://ipwho.is)
 
 ## Installation & run
@@ -106,7 +106,7 @@ MIT License
 
 - **Бэкенд:** Go
 - **UI-фреймворк:** [Wails v2](https://wails.io) (нативное окно + системный WebView)
-- **Фронтенд:** JavaScript / TypeScript, `globe.gl` (three.js)
+- **Фронтенд:** JavaScript, `globe.gl` (three.js)
 - **Гео-API:** [ipwho.is](https://ipwho.is)
 
 ## Установка и запуск
