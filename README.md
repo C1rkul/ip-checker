@@ -15,7 +15,7 @@ Simple ip-checker / Простой ip-checker
 ![Vibe-coded](https://img.shields.io/badge/built%20with-Claude.ai-purple)
 
 <p align="center">
-  <img src="./assets/screenshot.png" alt="Интерфейс IP-Checker: тёмное окно в стиле glassmorphism с неоновым точечным 3D-глобусом, полем ввода, кнопкой Check IP и подписью «Старт: Москва, Россия»" width="600">
+  <img src="./ip-checker/assets/screenshot.png" alt="Интерфейс IP-Checker: тёмное окно в стиле glassmorphism с неоновым точечным 3D-глобусом, полем ввода, кнопкой Check IP и подписью «Старт: Москва, Россия»" width="600">
 </p>
 
 
@@ -89,7 +89,7 @@ This app was **vibe-coded** — written in Go end-to-end with [Claude.ai](https:
 ![Vibe-coded](https://img.shields.io/badge/built%20with-Claude.ai-purple)
 
 <p align="center">
-  <img src="./assets/screenshot.png" alt="Интерфейс IP-Checker: тёмное окно в стиле glassmorphism с неоновым точечным 3D-глобусом, полем ввода, кнопкой Check IP и подписью «Старт: Москва, Россия»" width="600">
+  <img src="./ip-checker/assets/screenshot.png" alt="Интерфейс IP-Checker: тёмное окно в стиле glassmorphism с неоновым точечным 3D-глобусом, полем ввода, кнопкой Check IP и подписью «Старт: Москва, Россия»" width="600">
 </p>
 
 
